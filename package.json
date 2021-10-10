@@ -1,0 +1,68 @@
+{
+  "name": "vue-ditto",
+  "version": "0.1.0",
+  "engines": {
+    "node": "^12.13.0 || ^14.15.0"
+  },
+  "description": "vue-ditto",
+  "main": "dist/index.cjs.prod.js",
+  "module": "dist/index.es.prod.js",
+  "unpkg": "dist/index.iife.prod.js",
+  "jsdelivr": "dist/index.iife.prod.js",
+  "types": "src/index.ts",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iendeavor/vue-ditto.git"
+  },
+  "bugs": {
+    "url": "https://github.com/iendeavor/vue-ditto/issues"
+  },
+  "homepage": "https://github.com/iendeavor/vue-ditto#readme",
+  "author": "Ernest <iendeavor.github.io@gmail.com>",
+  "license": "MIT",
+  "files": [
+    "src",
+    "dist"
+  ],
+  "scripts": {
+    "postinstall": "husky install",
+    "prepublishOnly": "pinst --disable",
+    "postpublish": "pinst --enable"
+  },
+  "dependencies": {
+    "vue-demi": "latest"
+  },
+  "peerDependencies": {
+    "@vue/composition-api": "^1.1.5",
+    "vue": "^2.0.0 || ^3.2"
+  },
+  "peerDependenciesMeta": {
+    "@vue/composition-api": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@babel/core": "^7.15.5",
+    "@babel/preset-env": "^7.15.4",
+    "@commitlint/cli": "^13.1.0",
+    "@commitlint/config-conventional": "^13.1.0",
+    "@rollup/plugin-babel": "^5.3.0",
+    "@rollup/plugin-node-resolve": "^13.0.4",
+    "@types/jest": "^27",
+    "@types/node": "^16.7.5",
+    "change-case": "^4.1.2",
+    "conventional-changelog-cli": "^2.1.1",
+    "husky": "^7.0.2",
+    "jest": "^27",
+    "pinst": "^2.1.6",
+    "prettier": "^2.3.2",
+    "rimraf": "^3.0.2",
+    "rollup": "^2.56.3",
+    "rollup-plugin-replace": "^2.2.0",
+    "rollup-plugin-terser": "^7.0.2",
+    "rollup-plugin-typescript2": "^0.30.0",
+    "ts-jest": "^27",
+    "typescript": "^4",
+    "vue": "^3.2"
+  }
+}
