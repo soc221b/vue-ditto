@@ -62,8 +62,8 @@ export const dittoRef = <T>({
 }) => {
   const ditto = ref() as Ref<NestedDitto<T>>;
 
-  shallowWatch(
-    original,
+  watch(
+    () => original.value,
     () => {
       if (
         Array.isArray(original.value) !==
@@ -140,24 +140,7 @@ export const createDitto = <T>({
     ditto[metaSymbol].id = (original.value as any)?.id;
   }
 
-  onCreated({ ditto, path, original });
-
-  createNestedDitto({
-    original,
-    ditto,
-    path,
-    metaKeys,
-    flush,
-    onCreated,
-    onChildrenCreated,
-    onUpdated,
-    onChildrenUpdated,
-  });
-  onChildrenCreated({ ditto, path, original });
-
-  // moveProperties({ original, ditto, path, metaKeys, flush });
   removeOldProperties({ original, ditto, path, metaKeys, flush });
-
   watch(
     () => original.value,
     () => {
@@ -178,7 +161,6 @@ export const createDitto = <T>({
     },
     { flush }
   );
-
   addNewProperties({
     original,
     ditto,
@@ -190,6 +172,20 @@ export const createDitto = <T>({
     onUpdated,
     onChildrenUpdated,
   });
+
+  onCreated({ ditto, path, original });
+  createNestedDitto({
+    original,
+    ditto,
+    path,
+    metaKeys,
+    flush,
+    onCreated,
+    onChildrenCreated,
+    onUpdated,
+    onChildrenUpdated,
+  });
+  onChildrenCreated({ ditto, path, original });
 
   return ditto;
 };
@@ -278,7 +274,7 @@ const addNewProperties = <T>({
       ) {
         for (const key of getOwnKeys(original.value)) {
           try {
-            if (key in ditto === false && key !== "$meta") {
+            if (Object.prototype.hasOwnProperty.call(ditto, key) === false) {
               (ditto as any)[key] = createDitto({
                 original: toRef(original.value, key),
                 path: path.concat(key),
@@ -293,25 +289,26 @@ const addNewProperties = <T>({
           } catch {}
         }
       } else if (Array.isArray(original.value) && Array.isArray(ditto)) {
-        const idToOriginalItems = original.value.reduce(
-          (acc, item, index) =>
-            Object.assign(acc, { [item?.id]: { item, index } }),
-          {} as Record<Key, { index: number; item: any }>
-        );
-        const idToDittoItems = ditto.reduce(
+        const originalIds = original.value.map((item) => item.id);
+
+        const idToDittoIndex = ditto.reduce(
           (acc, item, index) =>
             Object.assign(acc, {
-              [item[metaSymbol].id]: { item, index },
+              [item[metaSymbol].id]: index,
             }),
-          {} as Record<Key, { index: number; item: any }>
+          {} as Record<Key, number>
         );
-        // TODO: improve diff algorithm
-        for (const id of getOwnKeys(idToOriginalItems)) {
-          if (idToDittoItems[id] !== undefined) continue;
 
-          ditto[idToOriginalItems[id].index] = createDitto({
-            original: toRef(original.value, idToOriginalItems[id].index),
-            path: path.concat(idToOriginalItems[id].index),
+        // TODO: improve diff algorithm
+        for (const index of originalIds.keys()) {
+          const id = originalIds[index];
+          // ignore sparse item
+          if (id === undefined) continue;
+          if (idToDittoIndex[id] !== undefined) continue;
+
+          ditto[index] = createDitto({
+            original: toRef(original.value, index),
+            path: path.concat(index),
             metaKeys,
             flush,
             onCreated,
@@ -320,6 +317,7 @@ const addNewProperties = <T>({
             onChildrenUpdated,
           });
         }
+
         ditto.length = original.value.length;
       }
     },
@@ -359,26 +357,23 @@ const removeOldProperties = <T>({
           } catch {}
         }
       } else if (Array.isArray(original.value) && Array.isArray(ditto)) {
-        const usedIndex = new Set();
-        const idToOriginalItems = original.value.reduce((acc, item, index) => {
-          usedIndex.add(index);
-          return Object.assign(acc, { [item?.id]: { item, index } });
-        }, {} as Record<Key, { index: number; item: any }>);
-        const idToDittoItems = ditto.reduce(
-          (acc, item, index) =>
-            Object.assign(acc, {
-              [item[metaSymbol].id]: { item, index },
-            }),
-          {} as Record<Key, { index: number; item: any }>
+        const idToOriginalIndex = original.value.reduce(
+          (acc, item, index) => Object.assign(acc, { [item.id]: index }),
+          {} as Record<Key, number>
         );
 
-        for (const id of getOwnKeys(idToDittoItems)) {
-          if (Object.prototype.hasOwnProperty.call(idToOriginalItems, id))
-            continue;
-          if (usedIndex.has(idToDittoItems[id].index)) continue;
+        const idToDittoIndex = ditto.reduce(
+          (acc, item, index) =>
+            Object.assign(acc, {
+              [item[metaSymbol].id]: index,
+            }),
+          {} as Record<Key, number>
+        );
 
-          // ignore sparse item
-          delete ditto[idToDittoItems[id].index];
+        for (const id of getOwnKeys(idToDittoIndex)) {
+          if (idToDittoIndex[id] === idToOriginalIndex[id]) continue;
+
+          delete ditto[idToDittoIndex[id]];
         }
       } else {
         for (const key of getOwnKeys(ditto)) {
