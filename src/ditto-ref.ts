@@ -1,4 +1,12 @@
-import { reactive, ref, toRef, watch, Ref, WatchOptions } from "vue-demi";
+import {
+  reactive,
+  ref,
+  toRef,
+  watch,
+  Ref,
+  WatchOptions,
+  WatchStopHandle,
+} from "vue-demi";
 import {
   isPlainObject,
   getOwnKeys,
@@ -62,8 +70,9 @@ export const dittoRef = <T>({
 }) => {
   const ditto = ref() as Ref<NestedDitto<T>>;
 
-  shallowWatch(
-    original,
+  const pathToWatchStopHandles = new Map();
+  watch(
+    () => original.value,
     () => {
       if (
         Array.isArray(original.value) !==
@@ -78,6 +87,7 @@ export const dittoRef = <T>({
           onChildrenCreated: onChildrenCreated ?? ignore,
           onUpdated: onUpdated ?? ignore,
           onChildrenUpdated: onChildrenUpdated ?? ignore,
+          pathToWatchStopHandles,
         });
       }
     },
@@ -93,6 +103,7 @@ export const dittoRef = <T>({
     onChildrenCreated: onChildrenCreated ?? ignore,
     onUpdated: onUpdated ?? ignore,
     onChildrenUpdated: onChildrenUpdated ?? ignore,
+    pathToWatchStopHandles,
   });
 
   return ditto;
@@ -107,6 +118,7 @@ export const createDitto = <T>({
   onChildrenCreated,
   onUpdated,
   onChildrenUpdated,
+  pathToWatchStopHandles,
 }: {
   original: Ref<T>;
   path: Path;
@@ -116,7 +128,10 @@ export const createDitto = <T>({
   onChildrenCreated: DittoCallback;
   onUpdated: DittoCallback;
   onChildrenUpdated: DittoCallback;
+  pathToWatchStopHandles: Map<string, WatchStopHandle[]>;
 }) => {
+  tearDownWatchStopHandlers({ path, pathToWatchStopHandles });
+
   const ditto = reactive(
     Array.isArray(original.value) ? [] : {}
   ) as NestedDitto<T>;
@@ -140,25 +155,15 @@ export const createDitto = <T>({
     ditto[metaSymbol].id = (original.value as any)?.id;
   }
 
-  onCreated({ ditto, path, original });
-
-  createNestedDitto({
+  removeOldProperties({
     original,
     ditto,
     path,
     metaKeys,
     flush,
-    onCreated,
-    onChildrenCreated,
-    onUpdated,
-    onChildrenUpdated,
+    pathToWatchStopHandles,
   });
-  onChildrenCreated({ ditto, path, original });
-
-  // moveProperties({ original, ditto, path, metaKeys, flush });
-  removeOldProperties({ original, ditto, path, metaKeys, flush });
-
-  watch(
+  const watchStopHandle = watch(
     () => original.value,
     () => {
       onUpdated({ ditto, path, original });
@@ -173,12 +178,18 @@ export const createDitto = <T>({
         onChildrenCreated,
         onUpdated,
         onChildrenUpdated,
+        pathToWatchStopHandles,
       });
+
       onChildrenUpdated({ ditto, path, original });
     },
     { flush }
   );
-
+  setUpWatchStopHandlers({
+    path,
+    pathToWatchStopHandles,
+    watchStopHandle,
+  });
   addNewProperties({
     original,
     ditto,
@@ -189,9 +200,57 @@ export const createDitto = <T>({
     onChildrenCreated,
     onUpdated,
     onChildrenUpdated,
+    pathToWatchStopHandles,
   });
 
+  onCreated({ ditto, path, original });
+  createNestedDitto({
+    original,
+    ditto,
+    path,
+    metaKeys,
+    flush,
+    onCreated,
+    onChildrenCreated,
+    onUpdated,
+    onChildrenUpdated,
+    pathToWatchStopHandles,
+  });
+  onChildrenCreated({ ditto, path, original });
+
   return ditto;
+};
+
+const setUpWatchStopHandlers = ({
+  path,
+  pathToWatchStopHandles,
+  watchStopHandle,
+}: {
+  path: Path;
+  pathToWatchStopHandles: Map<string, WatchStopHandle[]>;
+  watchStopHandle: WatchStopHandle;
+}) => {
+  const stringifiedPath = JSON.stringify(path);
+  if (pathToWatchStopHandles.has(stringifiedPath) === false) {
+    pathToWatchStopHandles.set(stringifiedPath, []);
+  }
+  pathToWatchStopHandles.set(
+    stringifiedPath,
+    pathToWatchStopHandles.get(stringifiedPath)!.concat(watchStopHandle)
+  );
+};
+const tearDownWatchStopHandlers = ({
+  path,
+  pathToWatchStopHandles,
+}: {
+  path: Path;
+  pathToWatchStopHandles: Map<string, WatchStopHandle[]>;
+}) => {
+  const stringifiedPath = JSON.stringify(path);
+  if (pathToWatchStopHandles.has(stringifiedPath)) {
+    pathToWatchStopHandles.get(stringifiedPath)!.forEach((fn) => fn());
+    pathToWatchStopHandles.delete(stringifiedPath);
+  }
 };
 
 const createNestedDitto = <T>({
@@ -204,6 +263,7 @@ const createNestedDitto = <T>({
   onChildrenCreated,
   onUpdated,
   onChildrenUpdated,
+  pathToWatchStopHandles,
 }: {
   original: Ref<T>;
   ditto: NestedDitto<T>;
@@ -214,6 +274,7 @@ const createNestedDitto = <T>({
   onChildrenCreated: DittoCallback;
   onUpdated: DittoCallback;
   onChildrenUpdated: DittoCallback;
+  pathToWatchStopHandles: Map<string, WatchStopHandle[]>;
 }) => {
   if (isPlainObject(original.value)) {
     for (const key of getOwnKeys(original.value)) {
@@ -226,6 +287,7 @@ const createNestedDitto = <T>({
         onChildrenCreated,
         onUpdated,
         onChildrenUpdated,
+        pathToWatchStopHandles,
       });
     }
   } else if (Array.isArray(original.value)) {
@@ -243,6 +305,7 @@ const createNestedDitto = <T>({
         onChildrenCreated,
         onUpdated,
         onChildrenUpdated,
+        pathToWatchStopHandles,
       });
     }
   }
@@ -258,6 +321,7 @@ const addNewProperties = <T>({
   onChildrenCreated,
   onUpdated,
   onChildrenUpdated,
+  pathToWatchStopHandles,
 }: {
   original: Ref<T>;
   ditto: NestedDitto<T>;
@@ -268,8 +332,9 @@ const addNewProperties = <T>({
   onChildrenCreated: DittoCallback;
   onUpdated: DittoCallback;
   onChildrenUpdated: DittoCallback;
+  pathToWatchStopHandles: Map<string, WatchStopHandle[]>;
 }) => {
-  shallowWatch(
+  const watchStopHandle = shallowWatch(
     original,
     () => {
       if (
@@ -278,7 +343,7 @@ const addNewProperties = <T>({
       ) {
         for (const key of getOwnKeys(original.value)) {
           try {
-            if (key in ditto === false && key !== "$meta") {
+            if (Object.prototype.hasOwnProperty.call(ditto, key) === false) {
               (ditto as any)[key] = createDitto({
                 original: toRef(original.value, key),
                 path: path.concat(key),
@@ -288,43 +353,53 @@ const addNewProperties = <T>({
                 onChildrenCreated,
                 onUpdated,
                 onChildrenUpdated,
+                pathToWatchStopHandles,
               });
             }
           } catch {}
         }
       } else if (Array.isArray(original.value) && Array.isArray(ditto)) {
-        const idToOriginalItems = original.value.reduce(
-          (acc, item, index) =>
-            Object.assign(acc, { [item?.id]: { item, index } }),
-          {} as Record<Key, { index: number; item: any }>
-        );
-        const idToDittoItems = ditto.reduce(
+        const originalIds = original.value.map((item) => item.id);
+
+        const idToDittoIndex = ditto.reduce(
           (acc, item, index) =>
             Object.assign(acc, {
-              [item[metaSymbol].id]: { item, index },
+              [item[metaSymbol].id]: index,
             }),
-          {} as Record<Key, { index: number; item: any }>
+          {} as Record<Key, number>
         );
-        // TODO: improve diff algorithm
-        for (const id of getOwnKeys(idToOriginalItems)) {
-          if (idToDittoItems[id] !== undefined) continue;
 
-          ditto[idToOriginalItems[id].index] = createDitto({
-            original: toRef(original.value, idToOriginalItems[id].index),
-            path: path.concat(idToOriginalItems[id].index),
+        // TODO: improve diff algorithm
+        for (const index of originalIds.keys()) {
+          const id = originalIds[index];
+          // ignore sparse item
+          if (id === undefined) continue;
+          if (idToDittoIndex[id] !== undefined) continue;
+
+          ditto[index] = createDitto({
+            original: toRef(original.value, index),
+            path: path.concat(index),
             metaKeys,
             flush,
             onCreated,
             onChildrenCreated,
             onUpdated,
             onChildrenUpdated,
+            pathToWatchStopHandles,
           });
         }
+
         ditto.length = original.value.length;
       }
     },
     { flush }
   );
+
+  setUpWatchStopHandlers({
+    path,
+    pathToWatchStopHandles,
+    watchStopHandle,
+  });
 };
 
 const removeOldProperties = <T>({
@@ -333,14 +408,16 @@ const removeOldProperties = <T>({
   path,
   metaKeys,
   flush,
+  pathToWatchStopHandles,
 }: {
   original: Ref<T>;
   ditto: NestedDitto<T>;
   path: Path;
   metaKeys: Key[];
   flush: WatchOptions["flush"];
+  pathToWatchStopHandles: Map<string, WatchStopHandle[]>;
 }) => {
-  shallowWatch(
+  const watchStopHandle = shallowWatch(
     original,
     () => {
       if (
@@ -359,26 +436,23 @@ const removeOldProperties = <T>({
           } catch {}
         }
       } else if (Array.isArray(original.value) && Array.isArray(ditto)) {
-        const usedIndex = new Set();
-        const idToOriginalItems = original.value.reduce((acc, item, index) => {
-          usedIndex.add(index);
-          return Object.assign(acc, { [item?.id]: { item, index } });
-        }, {} as Record<Key, { index: number; item: any }>);
-        const idToDittoItems = ditto.reduce(
-          (acc, item, index) =>
-            Object.assign(acc, {
-              [item[metaSymbol].id]: { item, index },
-            }),
-          {} as Record<Key, { index: number; item: any }>
+        const idToOriginalIndex = original.value.reduce(
+          (acc, item, index) => Object.assign(acc, { [item.id]: index }),
+          {} as Record<Key, number>
         );
 
-        for (const id of getOwnKeys(idToDittoItems)) {
-          if (Object.prototype.hasOwnProperty.call(idToOriginalItems, id))
-            continue;
-          if (usedIndex.has(idToDittoItems[id].index)) continue;
+        const idToDittoIndex = ditto.reduce(
+          (acc, item, index) =>
+            Object.assign(acc, {
+              [item[metaSymbol].id]: index,
+            }),
+          {} as Record<Key, number>
+        );
 
-          // ignore sparse item
-          delete ditto[idToDittoItems[id].index];
+        for (const id of getOwnKeys(idToDittoIndex)) {
+          if (idToDittoIndex[id] === idToOriginalIndex[id]) continue;
+
+          delete ditto[idToDittoIndex[id]];
         }
       } else {
         for (const key of getOwnKeys(ditto)) {
@@ -391,47 +465,10 @@ const removeOldProperties = <T>({
     },
     { flush }
   );
+
+  setUpWatchStopHandlers({
+    path,
+    pathToWatchStopHandles,
+    watchStopHandle,
+  });
 };
-
-// const moveProperties = <T>({
-//   original,
-//   ditto,
-//   path,
-//   metaKeys,
-//   flush,
-// }: {
-//   original: Ref<T>;
-//   ditto: NestedDitto<T>;
-//   path: Path;
-//   metaKeys: Key[];
-//   flush: WatchOptions["flush"];
-// }) => {
-//   shallowWatch(
-//     original,
-//     () => {
-//       if (Array.isArray(original.value) && Array.isArray(ditto)) {
-//         const idToOriginalItems = original.value.reduce((acc, item, index) =>  Object.assign(acc, { [item?.id]: { item, index } })
-//         , {} as Record<Key, { index: number; item: any }>);
-//         const idToDittoItems = ditto.reduce(
-//           (acc, item, index) =>
-//             Object.assign(acc, {
-//               [item[metaSymbol].id]: { item, index },
-//             }),
-//           {} as Record<Key, { index: number; item: any }>
-//         );
-
-//         for (const id of getOwnKeys(idToOriginalItems)) {
-//           if (
-//             Object.prototype.hasOwnProperty.call(idToDittoItems, id) === false
-//           )
-//             continue;
-//           if (idToDittoItems[id].index === idToOriginalItems[id].index)
-//             continue;
-
-//           ditto[idToOriginalItems[id].index] = idToDittoItems[id].item;
-//         }
-//       }
-//     },
-//     { flush }
-//   );
-// };

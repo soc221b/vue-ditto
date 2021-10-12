@@ -46,8 +46,8 @@ export const shallowWatch = <T>(
   source: Ref<T> | ComputedRef<T>,
   callback: WatchCallback,
   options: WatchOptions
-): void => {
-  watch(
+) => {
+  return watch(
     () => {
       if (isPlainObject(source.value)) {
         return getOwnKeys(source.value).reduce(
