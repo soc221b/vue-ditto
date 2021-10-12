@@ -1,5 +1,5 @@
 import { nextTick, ref, isRef, Ref } from "vue-demi";
-import { dittoRef as originalDittoRef, Path } from "../src";
+import { dittoRef, Path } from "../src";
 
 declare module "../src/ditto-ref" {
   interface Ditto<T> {
@@ -17,8 +17,8 @@ beforeEach(() => {
   order = 1;
 });
 
-const dittoRef = <T>(original: Ref<T>) => {
-  return originalDittoRef({
+const commonDittoRef = <T>(original: Ref<T>) => {
+  return dittoRef({
     original,
     metaKeys: ["$meta"],
     onChildrenCreated: ({ ditto, path, original }) => {
@@ -36,14 +36,17 @@ const dittoRef = <T>(original: Ref<T>) => {
 describe("dittoRef", () => {
   test("ditto is a ref", () => {
     const original = ref("foo");
-    const ditto = dittoRef(original);
+    const ditto = dittoRef({ original });
 
     expect(isRef(ditto)).toBe(true);
   });
 
   test("it should retain metaKeys", () => {
-    const original = ref<{ foo: number }>({ foo: 42 });
-    const ditto = originalDittoRef({
+    const original = ref<{ foo: number; bar: [{ id: Number; baz: number }] }>({
+      foo: 42,
+      bar: [{ id: 1, baz: 42 }],
+    });
+    const ditto = dittoRef({
       original,
       metaKeys: ["$count"],
       flush: "sync",
@@ -57,16 +60,106 @@ describe("dittoRef", () => {
 
     expect(ditto.value.$count).toBe(0);
     expect(ditto.value.foo.$count).toBe(0);
+    expect(ditto.value.bar.$count).toBe(0);
+    expect(ditto.value.bar[0].$count).toBe(0);
+    expect(ditto.value.bar[0].baz.$count).toBe(0);
 
-    original.value.foo++;
-    expect(ditto.value.$count).toBe(0);
+    original.value = { foo: 43, bar: [{ id: 1, baz: 42 }] };
+    expect(ditto.value.$count).toBe(1);
+    expect(ditto.value.foo.$count).toBe(0);
+    expect(ditto.value.bar.$count).toBe(0);
+    expect(ditto.value.bar[0].$count).toBe(0);
+    expect(ditto.value.bar[0].baz.$count).toBe(0);
+
+    original.value = { foo: 44, bar: [{ id: 1, baz: 42 }] };
+    expect(ditto.value.$count).toBe(2);
+    expect(ditto.value.foo.$count).toBe(0);
+    expect(ditto.value.bar.$count).toBe(0);
+    expect(ditto.value.bar[0].$count).toBe(0);
+    expect(ditto.value.bar[0].baz.$count).toBe(0);
+
+    original.value.foo = 45;
+    expect(ditto.value.$count).toBe(2);
     expect(ditto.value.foo.$count).toBe(1);
+    expect(ditto.value.bar.$count).toBe(0);
+    expect(ditto.value.bar[0].$count).toBe(0);
+    expect(ditto.value.bar[0].baz.$count).toBe(0);
+
+    original.value.foo = 46;
+    expect(ditto.value.$count).toBe(2);
+    expect(ditto.value.foo.$count).toBe(2);
+    expect(ditto.value.bar.$count).toBe(0);
+    expect(ditto.value.bar[0].$count).toBe(0);
+    expect(ditto.value.bar[0].baz.$count).toBe(0);
+
+    original.value.bar = [{ id: 1, baz: 43 }];
+    expect(ditto.value.$count).toBe(2);
+    expect(ditto.value.foo.$count).toBe(2);
+    expect(ditto.value.bar.$count).toBe(1);
+    expect(ditto.value.bar[0].$count).toBe(0);
+    expect(ditto.value.bar[0].baz.$count).toBe(0);
+
+    original.value.bar = [{ id: 1, baz: 44 }];
+    expect(ditto.value.$count).toBe(2);
+    expect(ditto.value.foo.$count).toBe(2);
+    expect(ditto.value.bar.$count).toBe(2);
+    expect(ditto.value.bar[0].$count).toBe(0);
+    expect(ditto.value.bar[0].baz.$count).toBe(0);
+
+    original.value.bar[0] = { id: 1, baz: 45 };
+    expect(ditto.value.$count).toBe(2);
+    expect(ditto.value.foo.$count).toBe(2);
+    expect(ditto.value.bar.$count).toBe(2);
+    expect(ditto.value.bar[0].$count).toBe(1);
+    expect(ditto.value.bar[0].baz.$count).toBe(0);
+
+    original.value.bar[0] = { id: 1, baz: 46 };
+    expect(ditto.value.$count).toBe(2);
+    expect(ditto.value.foo.$count).toBe(2);
+    expect(ditto.value.bar.$count).toBe(2);
+    expect(ditto.value.bar[0].$count).toBe(2);
+    expect(ditto.value.bar[0].baz.$count).toBe(0);
+
+    original.value.bar[0].baz = 47;
+    expect(ditto.value.$count).toBe(2);
+    expect(ditto.value.foo.$count).toBe(2);
+    expect(ditto.value.bar.$count).toBe(2);
+    expect(ditto.value.bar[0].$count).toBe(2);
+    expect(ditto.value.bar[0].baz.$count).toBe(1);
+
+    original.value.bar[0].baz = 48;
+    expect(ditto.value.$count).toBe(2);
+    expect(ditto.value.foo.$count).toBe(2);
+    expect(ditto.value.bar.$count).toBe(2);
+    expect(ditto.value.bar[0].$count).toBe(2);
+    expect(ditto.value.bar[0].baz.$count).toBe(2);
+
+    original.value.bar[0] = { id: 1, baz: 49 };
+    expect(ditto.value.$count).toBe(2);
+    expect(ditto.value.foo.$count).toBe(2);
+    expect(ditto.value.bar.$count).toBe(2);
+    expect(ditto.value.bar[0].$count).toBe(3);
+    expect(ditto.value.bar[0].baz.$count).toBe(0);
+
+    original.value.bar = [{ id: 1, baz: 50 }];
+    expect(ditto.value.$count).toBe(2);
+    expect(ditto.value.foo.$count).toBe(2);
+    expect(ditto.value.bar.$count).toBe(3);
+    expect(ditto.value.bar[0].$count).toBe(0);
+    expect(ditto.value.bar[0].baz.$count).toBe(0);
+
+    original.value = { foo: 45, bar: [{ id: 1, baz: 51 }] };
+    expect(ditto.value.$count).toBe(3);
+    expect(ditto.value.foo.$count).toBe(0);
+    expect(ditto.value.bar.$count).toBe(0);
+    expect(ditto.value.bar[0].$count).toBe(0);
+    expect(ditto.value.bar[0].baz.$count).toBe(0);
   });
 
   describe("structure", () => {
     test("primitive", () => {
       const original = ref("foo");
-      const ditto = dittoRef(original);
+      const ditto = commonDittoRef(original);
 
       expect(ditto.value).toMatchInlineSnapshot(`
         Object {
@@ -81,7 +174,7 @@ describe("dittoRef", () => {
 
     test("plain object", () => {
       const original = ref({ a: "foo", b: { c: "bar" } });
-      const ditto = dittoRef(original);
+      const ditto = commonDittoRef(original);
 
       expect(ditto.value).toMatchInlineSnapshot(`
         Object {
@@ -139,7 +232,7 @@ describe("dittoRef", () => {
         { id: 0, value: "foo" },
         { id: 1, value: [{ id: 0, value: "bar" }] },
       ]);
-      const ditto = dittoRef(original);
+      const ditto = commonDittoRef(original);
 
       expect(ditto.value).toMatchInlineSnapshot(`
         Array [
@@ -290,7 +383,7 @@ describe("dittoRef", () => {
         )[]
       >(Array(2));
       original.value[1] = { id: 1, value: "foo" };
-      const ditto = dittoRef(original);
+      const ditto = commonDittoRef(original);
 
       expect(ditto.value).toMatchInlineSnapshot(`
         Array [
@@ -349,7 +442,7 @@ describe("dittoRef", () => {
     describe("primitive", () => {
       test("set 1", async () => {
         const original = ref<string>("foo");
-        const ditto = dittoRef(original);
+        const ditto = commonDittoRef(original);
 
         original.value = "bar";
         await nextTick();
@@ -369,7 +462,7 @@ describe("dittoRef", () => {
     describe("plain object", () => {
       test("set 1", async () => {
         const original = ref({ a: "foo", b: { c: "bar" } });
-        const ditto = dittoRef(original);
+        const ditto = commonDittoRef(original);
 
         original.value = { a: "baz", b: { c: "qux" } };
         await nextTick();
@@ -422,7 +515,7 @@ describe("dittoRef", () => {
 
       test("set 2", async () => {
         const original = ref({ a: "foo", b: { c: "bar" } });
-        const ditto = dittoRef(original);
+        const ditto = commonDittoRef(original);
 
         original.value.a = "baz";
         await nextTick();
@@ -475,7 +568,7 @@ describe("dittoRef", () => {
 
       test("set 3", async () => {
         const original = ref({ a: "foo", b: { c: "bar" } });
-        const ditto = dittoRef(original);
+        const ditto = commonDittoRef(original);
 
         original.value.b = { c: "baz" };
         await nextTick();
@@ -528,7 +621,7 @@ describe("dittoRef", () => {
 
       test("set 4", async () => {
         const original = ref({ a: "foo", b: { c: "bar" } });
-        const ditto = dittoRef(original);
+        const ditto = commonDittoRef(original);
 
         original.value.b.c = "baz";
         await nextTick();
@@ -581,7 +674,7 @@ describe("dittoRef", () => {
 
       test("add 1", async () => {
         const original = ref({} as { a: string; b: { c: string } });
-        const ditto = dittoRef(original);
+        const ditto = commonDittoRef(original);
 
         original.value = { a: "foo", b: { c: "bar" } };
         await nextTick();
@@ -637,7 +730,7 @@ describe("dittoRef", () => {
           a?: string;
           b: { c: string };
         });
-        const ditto = dittoRef(original);
+        const ditto = commonDittoRef(original);
 
         original.value.a = "bar";
         await nextTick();
@@ -690,7 +783,7 @@ describe("dittoRef", () => {
 
       test("add 3", async () => {
         const original = ref({ a: "foo" } as { a: string; b?: { c: string } });
-        const ditto = dittoRef(original);
+        const ditto = commonDittoRef(original);
 
         original.value.b = { c: "bar" };
         await nextTick();
@@ -743,7 +836,7 @@ describe("dittoRef", () => {
 
       test("add 4", async () => {
         const original = ref({ a: "foo", b: {} as { c?: string } });
-        const ditto = dittoRef(original);
+        const ditto = commonDittoRef(original);
 
         original.value.b.c = "baz";
         await nextTick();
@@ -799,7 +892,7 @@ describe("dittoRef", () => {
           a: "foo",
           b: { c: "bar" },
         });
-        const ditto = dittoRef(original);
+        const ditto = commonDittoRef(original);
 
         delete original.value.a;
         await nextTick();
@@ -845,7 +938,7 @@ describe("dittoRef", () => {
           a: "foo",
           b: { c: "bar" },
         });
-        const ditto = dittoRef(original);
+        const ditto = commonDittoRef(original);
 
         delete original.value.b;
         await nextTick();
@@ -877,7 +970,7 @@ describe("dittoRef", () => {
           a: "foo",
           b: { c: "bar" },
         });
-        const ditto = dittoRef(original);
+        const ditto = commonDittoRef(original);
 
         delete original.value.b.c;
         await nextTick();
@@ -924,9 +1017,9 @@ describe("dittoRef", () => {
           ]
         >([
           { id: 1, value: "foo" },
-          { id: 2, value: [{ id: 3, value: "foo" }] },
+          { id: 2, value: [{ id: 3, value: "bar" }] },
         ]);
-        const ditto = dittoRef(original);
+        const ditto = commonDittoRef(original);
 
         original.value = [
           { id: 1, value: "baz" },
@@ -1083,9 +1176,9 @@ describe("dittoRef", () => {
           ]
         >([
           { id: 1, value: "foo" },
-          { id: 2, value: [{ id: 3, value: "foo" }] },
+          { id: 2, value: [{ id: 3, value: "bar" }] },
         ]);
-        const ditto = dittoRef(original);
+        const ditto = commonDittoRef(original);
 
         original.value[0] = { id: 1, value: "baz" };
         await nextTick();
@@ -1132,7 +1225,7 @@ describe("dittoRef", () => {
                   "value": Array [
                     Object {
                       "id": 3,
-                      "value": "foo",
+                      "value": "bar",
                     },
                   ],
                 },
@@ -1156,7 +1249,7 @@ describe("dittoRef", () => {
                     "order": 7,
                     "original": Object {
                       "id": 3,
-                      "value": "foo",
+                      "value": "bar",
                     },
                     "path": Array [
                       1,
@@ -1179,7 +1272,7 @@ describe("dittoRef", () => {
                   "value": Object {
                     "$meta": Object {
                       "order": 6,
-                      "original": "foo",
+                      "original": "bar",
                       "path": Array [
                         1,
                         "value",
@@ -1199,7 +1292,7 @@ describe("dittoRef", () => {
             "original": Array [
               Object {
                 "id": 3,
-                "value": "foo",
+                "value": "bar",
               },
             ],
             "path": Array [
@@ -1221,7 +1314,7 @@ describe("dittoRef", () => {
                 "value": Array [
                   Object {
                     "id": 3,
-                    "value": "foo",
+                    "value": "bar",
                   },
                 ],
               },
@@ -1239,9 +1332,9 @@ describe("dittoRef", () => {
           ]
         >([
           { id: 1, value: "foo" },
-          { id: 2, value: [{ id: 3, value: "foo" }] },
+          { id: 2, value: [{ id: 3, value: "bar" }] },
         ]);
-        const ditto = dittoRef(original);
+        const ditto = commonDittoRef(original);
 
         original.value[0].value = "baz";
         await nextTick();
@@ -1288,7 +1381,7 @@ describe("dittoRef", () => {
                   "value": Array [
                     Object {
                       "id": 3,
-                      "value": "foo",
+                      "value": "bar",
                     },
                   ],
                 },
@@ -1312,7 +1405,7 @@ describe("dittoRef", () => {
                     "order": 7,
                     "original": Object {
                       "id": 3,
-                      "value": "foo",
+                      "value": "bar",
                     },
                     "path": Array [
                       1,
@@ -1335,7 +1428,7 @@ describe("dittoRef", () => {
                   "value": Object {
                     "$meta": Object {
                       "order": 6,
-                      "original": "foo",
+                      "original": "bar",
                       "path": Array [
                         1,
                         "value",
@@ -1355,7 +1448,7 @@ describe("dittoRef", () => {
             "original": Array [
               Object {
                 "id": 3,
-                "value": "foo",
+                "value": "bar",
               },
             ],
             "path": Array [
@@ -1377,7 +1470,7 @@ describe("dittoRef", () => {
                 "value": Array [
                   Object {
                     "id": 3,
-                    "value": "foo",
+                    "value": "bar",
                   },
                 ],
               },
@@ -1395,9 +1488,9 @@ describe("dittoRef", () => {
           ]
         >([
           { id: 1, value: "foo" },
-          { id: 2, value: [{ id: 3, value: "foo" }] },
+          { id: 2, value: [{ id: 3, value: "bar" }] },
         ]);
-        const ditto = dittoRef(original);
+        const ditto = commonDittoRef(original);
 
         original.value[1] = { id: 2, value: [{ id: 3, value: "baz" }] };
         await nextTick();
@@ -1543,7 +1636,7 @@ describe("dittoRef", () => {
         `);
       });
 
-      test("set 4", async () => {
+      test("set 5", async () => {
         const original = ref<
           [
             { id: number; value: string },
@@ -1551,9 +1644,9 @@ describe("dittoRef", () => {
           ]
         >([
           { id: 1, value: "foo" },
-          { id: 2, value: [{ id: 3, value: "foo" }] },
+          { id: 2, value: [{ id: 3, value: "bar" }] },
         ]);
-        const ditto = dittoRef(original);
+        const ditto = commonDittoRef(original);
 
         original.value[1].value = [{ id: 3, value: "baz" }];
         await nextTick();
@@ -1699,7 +1792,7 @@ describe("dittoRef", () => {
         `);
       });
 
-      test("set 5", async () => {
+      test("set 6", async () => {
         const original = ref<
           [
             { id: number; value: string },
@@ -1707,9 +1800,9 @@ describe("dittoRef", () => {
           ]
         >([
           { id: 1, value: "foo" },
-          { id: 2, value: [{ id: 3, value: "foo" }] },
+          { id: 2, value: [{ id: 3, value: "bar" }] },
         ]);
-        const ditto = dittoRef(original);
+        const ditto = commonDittoRef(original);
 
         original.value[1].value[0].value = "baz";
         await nextTick();
@@ -1862,7 +1955,7 @@ describe("dittoRef", () => {
             | { id: number; value: [{ id: number; value: string }] }
           )[]
         >([{ id: 1, value: "foo" }]);
-        const ditto = dittoRef(original);
+        const ditto = commonDittoRef(original);
 
         original.value[1] = { id: 2, value: [{ id: 3, value: "bar" }] };
         await nextTick();
@@ -2016,7 +2109,7 @@ describe("dittoRef", () => {
           )[]
         >(Array(2));
         original.value[1] = { id: 1, value: "foo" };
-        const ditto = dittoRef(original);
+        const ditto = commonDittoRef(original);
 
         original.value[0] = { id: 2, value: [{ id: 3, value: "bar" }] };
         await nextTick();
@@ -2169,7 +2262,7 @@ describe("dittoRef", () => {
             | { id: number; value: [{ id: number; value: string }] }
           )[]
         >([{ id: 1, value: "foo" }]);
-        const ditto = dittoRef(original);
+        const ditto = commonDittoRef(original);
 
         original.value[2] = { id: 2, value: [{ id: 3, value: "bar" }] };
         await nextTick();
@@ -2327,7 +2420,7 @@ describe("dittoRef", () => {
           { id: 1, value: "foo" },
           { id: 2, value: [{ id: 3, value: "bar" }] },
         ]);
-        const ditto = dittoRef(original);
+        const ditto = commonDittoRef(original);
 
         delete original.value[0];
         await nextTick();
@@ -2449,7 +2542,7 @@ describe("dittoRef", () => {
           { id: 1, value: "foo" },
           { id: 2, value: [{ id: 3, value: "bar" }] },
         ]);
-        const ditto = dittoRef(original);
+        const ditto = commonDittoRef(original);
 
         delete original.value[1];
         await nextTick();
@@ -2507,12 +2600,12 @@ describe("dittoRef", () => {
       });
 
       // TODO
-      test.skip("lookup mixed 1", async () => {
+      test("lookup mixed 1", async () => {
         const original = ref<
           | [{ id: number; value: string }]
           | [undefined, { id: number; value: string }]
         >([{ id: 1, value: "foo" }]);
-        const ditto = dittoRef(original);
+        const ditto = commonDittoRef(original);
 
         original.value[1] = original.value[0];
         delete original.value[0];
@@ -2570,12 +2663,13 @@ describe("dittoRef", () => {
         `);
       });
 
-      test.skip("lookup mixed 2", async () => {
+      // TODO
+      test("lookup mixed 2", async () => {
         const original = ref<
           | [{ id: number; value: string }]
           | [undefined, { id: number; value: string }]
         >([{ id: 1, value: "foo" }]);
-        const ditto = dittoRef(original);
+        const ditto = commonDittoRef(original);
 
         original.value[1] = original.value[0];
         original.value[0] = undefined;
@@ -2651,7 +2745,7 @@ describe("dittoRef", () => {
           { id: 1, value: "foo" },
           { id: 2, value: [{ id: 3, value: "bar" }] },
         ]);
-        const ditto = dittoRef(original);
+        const ditto = commonDittoRef(original);
 
         original.value.length = 1;
         await nextTick();
@@ -2713,7 +2807,7 @@ describe("dittoRef", () => {
             value: string;
           }[]
         >([{ id: 1, value: "foo" }]);
-        const ditto = dittoRef(original);
+        const ditto = commonDittoRef(original);
 
         original.value.length = 2;
         await nextTick();
@@ -2777,7 +2871,7 @@ describe("dittoRef", () => {
             | { id: number; value: { id: number; value: string }[] }
           ]
         >([{ id: 1, value: "foo" }]);
-        const ditto = dittoRef(original);
+        const ditto = commonDittoRef(original);
 
         original.value.push({ id: 2, value: [{ id: 3, value: "bar" }] });
         await nextTick();
@@ -2933,7 +3027,7 @@ describe("dittoRef", () => {
           { id: 1, value: "foo" },
           { id: 2, value: [{ id: 3, value: "bar" }] },
         ]);
-        const ditto = dittoRef(original);
+        const ditto = commonDittoRef(original);
 
         original.value.pop();
         await nextTick();
@@ -2988,15 +3082,14 @@ describe("dittoRef", () => {
         `);
       });
 
-      // TODO
-      test.skip("unshift 1", async () => {
+      test("unshift 1", async () => {
         const original = ref<
           [
             | { id: number; value: string }
             | { id: number; value: { id: number; value: string }[] }
           ]
         >([{ id: 1, value: "foo" }]);
-        const ditto = dittoRef(original);
+        const ditto = commonDittoRef(original);
 
         original.value.unshift({ id: 2, value: [{ id: 3, value: "bar" }] });
         await nextTick();
@@ -3142,6 +3235,7 @@ describe("dittoRef", () => {
         `);
       });
 
+      // TODO
       test("shift 1", async () => {
         const original = ref<
           [
@@ -3155,7 +3249,7 @@ describe("dittoRef", () => {
           { id: 1, value: "a" },
           { id: 2, value: [{ id: 3, value: "b" }] },
         ]);
-        const ditto = dittoRef(original);
+        const ditto = commonDittoRef(original);
 
         original.value.shift();
         await nextTick();
@@ -3265,6 +3359,7 @@ describe("dittoRef", () => {
         `);
       });
 
+      // TODO
       test("reverse 1", async () => {
         const original = ref<{ id: number; value: string }[]>([
           { id: 1, value: "a" },
@@ -3272,7 +3367,7 @@ describe("dittoRef", () => {
           { id: 3, value: "c" },
           { id: 4, value: "d" },
         ]);
-        const ditto = dittoRef(original);
+        const ditto = commonDittoRef(original);
 
         original.value.reverse();
         await nextTick();
@@ -3435,6 +3530,7 @@ describe("dittoRef", () => {
         `);
       });
 
+      // TODO
       test("reverse 2", async () => {
         const original = ref<{ id: number; value: string }[]>([
           { id: 1, value: "a" },
@@ -3442,7 +3538,7 @@ describe("dittoRef", () => {
           { id: 3, value: "c" },
           { id: 4, value: "d" },
         ]);
-        const ditto = dittoRef(original);
+        const ditto = commonDittoRef(original);
 
         original.value.reverse();
         await nextTick();
@@ -3609,14 +3705,14 @@ describe("dittoRef", () => {
       });
 
       // TODO
-      test.skip("sort 1", async () => {
+      test("sort 1", async () => {
         const original = ref<{ id: number; value: string }[]>([
           { id: 1, value: "d" },
           { id: 2, value: "a" },
           { id: 3, value: "c" },
           { id: 4, value: "b" },
         ]);
-        const ditto = dittoRef(original);
+        const ditto = commonDittoRef(original);
 
         original.value.sort((a, b) => a.value.localeCompare(b.value));
         await nextTick();
@@ -3779,6 +3875,7 @@ describe("dittoRef", () => {
         `);
       });
 
+      // TODO
       test("sort 2", async () => {
         const original = ref<{ id: number; value: string }[]>([
           { id: 1, value: "d" },
@@ -3786,7 +3883,7 @@ describe("dittoRef", () => {
           { id: 3, value: "c" },
           { id: 4, value: "b" },
         ]);
-        const ditto = dittoRef(original);
+        const ditto = commonDittoRef(original);
 
         original.value.sort((a, b) => a.value.localeCompare(b.value));
         await nextTick();
@@ -3957,7 +4054,7 @@ describe("dittoRef", () => {
       describe("primitive to others", () => {
         test("undefined 1", async () => {
           const original = ref<string | undefined>("foo");
-          const ditto = dittoRef(original);
+          const ditto = commonDittoRef(original);
 
           original.value = undefined;
           await nextTick();
@@ -3977,7 +4074,7 @@ describe("dittoRef", () => {
           const original = ref<string | { foo: number; bar: { baz: number } }>(
             "foo"
           );
-          const ditto = dittoRef(original);
+          const ditto = commonDittoRef(original);
 
           original.value = { foo: 42, bar: { baz: 43 } };
           await nextTick();
@@ -4030,7 +4127,7 @@ describe("dittoRef", () => {
 
         test("array 1", async () => {
           const original = ref<string | { id: number; foo: number }[]>("foo");
-          const ditto = dittoRef(original);
+          const ditto = commonDittoRef(original);
 
           original.value = [{ id: 1, foo: 42 }];
           await nextTick();
@@ -4089,7 +4186,7 @@ describe("dittoRef", () => {
       describe("undefined to others", () => {
         test("primitive 1", async () => {
           const original = ref<undefined | string>();
-          const ditto = dittoRef(original);
+          const ditto = commonDittoRef(original);
 
           original.value = "foo";
           await nextTick();
@@ -4109,7 +4206,7 @@ describe("dittoRef", () => {
           const original = ref<
             undefined | { foo: number; bar: { baz: number } }
           >(undefined);
-          const ditto = dittoRef(original);
+          const ditto = commonDittoRef(original);
 
           original.value = { foo: 42, bar: { baz: 43 } };
           await nextTick();
@@ -4162,7 +4259,7 @@ describe("dittoRef", () => {
 
         test("array 1", async () => {
           const original = ref<undefined | { id: number; foo: number }[]>();
-          const ditto = dittoRef(original);
+          const ditto = commonDittoRef(original);
 
           original.value = [{ id: 1, foo: 42 }];
           await nextTick();
@@ -4224,7 +4321,7 @@ describe("dittoRef", () => {
             a: "foo",
             b: { c: "bar" },
           });
-          const ditto = dittoRef(original);
+          const ditto = commonDittoRef(original);
 
           original.value = undefined;
           await nextTick();
@@ -4245,7 +4342,7 @@ describe("dittoRef", () => {
             a: "foo",
             b: { c: "bar" },
           });
-          const ditto = dittoRef(original);
+          const ditto = commonDittoRef(original);
 
           original.value = "foo";
           await nextTick();
@@ -4268,7 +4365,7 @@ describe("dittoRef", () => {
             a: "foo",
             b: { c: "bar" },
           });
-          const ditto = dittoRef(original);
+          const ditto = commonDittoRef(original);
 
           original.value = [{ id: 1, foo: 42 }];
           await nextTick();
@@ -4326,11 +4423,10 @@ describe("dittoRef", () => {
 
       describe("array to others", () => {
         test("undefined 1", async () => {
-          const original = ref<[string, string[]] | undefined>([
-            "foo",
-            ["bar"],
+          const original = ref<[{ id: number; value: string }] | undefined>([
+            { id: 0, value: "foo" },
           ]);
-          const ditto = dittoRef(original);
+          const ditto = commonDittoRef(original);
 
           original.value = undefined;
           await nextTick();
@@ -4347,8 +4443,10 @@ describe("dittoRef", () => {
         });
 
         test("primitive 1", async () => {
-          const original = ref<[string, string[]] | string>(["foo", ["bar"]]);
-          const ditto = dittoRef(original);
+          const original = ref<[{ id: number; value: string }] | string>([
+            { id: 0, value: "foo" },
+          ]);
+          const ditto = commonDittoRef(original);
 
           original.value = "foo";
           await nextTick();
@@ -4366,9 +4464,10 @@ describe("dittoRef", () => {
 
         test("object 1", async () => {
           const original = ref<
-            [string, string[]] | { foo: number; bar: { baz: number } }
-          >(["foo", ["bar"]]);
-          const ditto = dittoRef(original);
+            | [{ id: number; value: string }]
+            | { foo: number; bar: { baz: number } }
+          >([{ id: 0, value: "foo" }]);
+          const ditto = commonDittoRef(original);
 
           original.value = { foo: 42, bar: { baz: 43 } };
           await nextTick();
