@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.1.1](https://github.com/iendeavor/vue-ditto/compare/v0.1.0...v0.1.1) (2021-10-16)
+
+
+### Bug Fixes
+
+* hide inner property types ([4fa4ffa](https://github.com/iendeavor/vue-ditto/commit/4fa4ffada3f8e33598ec649aae0b03938d865d41))
+
 ## 0.1.0 (2021-10-14)
 
 
