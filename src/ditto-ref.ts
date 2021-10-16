@@ -19,22 +19,22 @@ import {
 const dittoSymbol = Symbol("ditto");
 const metaSymbol = Symbol("meta");
 
-export interface Ditto<T> {}
+export interface DittoMeta<T> {}
 
-export type NestedDitto<T> = T extends any[]
-  ? NestedDitto<T[number]>[] & Ditto<T>
+export type Ditto<T> = T extends any[]
+  ? Ditto<T[number]>[] & DittoMeta<T>
   : T extends object
   ? {
-      [P in keyof T]: NestedDitto<T[P]>;
-    } & Ditto<T>
-  : Ditto<T>;
+      [P in keyof T]: Ditto<T[P]>;
+    } & DittoMeta<T>
+  : DittoMeta<T>;
 
 export type DittoCallback = <T>({
   ditto,
   path,
   original,
 }: {
-  ditto: NestedDitto<T>;
+  ditto: Ditto<T>;
   path: Path;
   original: Ref<any>;
 }) => void;
@@ -59,7 +59,7 @@ export const dittoRef = <T>({
   onUpdated?: DittoCallback;
   onChildrenUpdated?: DittoCallback;
 }) => {
-  const ditto = ref() as Ref<NestedDitto<T>>;
+  const ditto = ref() as Ref<Ditto<T>>;
 
   const pathToWatchStopHandles = new Map();
   watch(
@@ -123,9 +123,7 @@ const createDitto = <T>({
 }) => {
   tearDownWatchStopHandlers({ path, pathToWatchStopHandles });
 
-  const ditto = reactive(
-    Array.isArray(original.value) ? [] : {}
-  ) as NestedDitto<T>;
+  const ditto = reactive(Array.isArray(original.value) ? [] : {}) as Ditto<T>;
   Object.defineProperty(ditto, dittoSymbol, {
     enumerable: false,
     configurable: true,
@@ -257,7 +255,7 @@ const createNestedDitto = <T>({
   pathToWatchStopHandles,
 }: {
   original: Ref<T>;
-  ditto: NestedDitto<T>;
+  ditto: Ditto<T>;
   path: Path;
   metaKeys: Key[];
   flush: WatchOptions["flush"];
@@ -315,7 +313,7 @@ const addNewProperties = <T>({
   pathToWatchStopHandles,
 }: {
   original: Ref<T>;
-  ditto: NestedDitto<T>;
+  ditto: Ditto<T>;
   path: Path;
   metaKeys: Key[];
   flush: WatchOptions["flush"];
@@ -402,7 +400,7 @@ const removeOldProperties = <T>({
   pathToWatchStopHandles,
 }: {
   original: Ref<T>;
-  ditto: NestedDitto<T>;
+  ditto: Ditto<T>;
   path: Path;
   metaKeys: Key[];
   flush: WatchOptions["flush"];

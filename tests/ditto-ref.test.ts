@@ -2,7 +2,7 @@ import { nextTick, ref, isRef, Ref } from "vue-demi";
 import { dittoRef, Path } from "../src";
 
 declare module "../src/ditto-ref" {
-  interface Ditto<T> {
+  interface DittoMeta<T> {
     $meta: {
       path: Path;
       original: any;
