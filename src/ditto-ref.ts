@@ -16,14 +16,8 @@ import {
   Key,
 } from "./util";
 
-export interface Meta<T> {
-  model: T;
-  path: Path;
-  id: number;
-}
-
-export const dittoSymbol = Symbol("ditto");
-export const metaSymbol = Symbol("meta");
+const dittoSymbol = Symbol("ditto");
+const metaSymbol = Symbol("meta");
 
 export interface Ditto<T> {}
 
@@ -106,7 +100,7 @@ export const dittoRef = <T>({
   return ditto;
 };
 
-export const createDitto = <T>({
+const createDitto = <T>({
   original,
   path,
   metaKeys,
