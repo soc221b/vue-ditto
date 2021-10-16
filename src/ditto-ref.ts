@@ -25,10 +25,7 @@ export interface Meta<T> {
 export const dittoSymbol = Symbol("ditto");
 export const metaSymbol = Symbol("meta");
 
-export interface Ditto<T> {
-  readonly [dittoSymbol]: true;
-  readonly [metaSymbol]: Meta<T>;
-}
+export interface Ditto<T> {}
 
 export type NestedDitto<T> = T extends any[]
   ? NestedDitto<T[number]>[] & Ditto<T>
@@ -76,7 +73,7 @@ export const dittoRef = <T>({
     () => {
       if (
         Array.isArray(original.value) !==
-        Array.isArray(ditto.value[metaSymbol].model)
+        Array.isArray((ditto.value as any)[metaSymbol].model)
       ) {
         ditto.value = createDitto({
           original,
@@ -152,7 +149,7 @@ export const createDitto = <T>({
     },
   });
   if (typeof (original.value as any)?.id === "number") {
-    ditto[metaSymbol].id = (original.value as any)?.id;
+    (ditto as any)[metaSymbol].id = (original.value as any)?.id;
   }
 
   removeOldProperties({
@@ -339,7 +336,7 @@ const addNewProperties = <T>({
     () => {
       if (
         isPlainObject(original.value) &&
-        isPlainObject(ditto[metaSymbol].model)
+        isPlainObject((ditto as any)[metaSymbol].model)
       ) {
         for (const key of getOwnKeys(original.value)) {
           try {
@@ -364,7 +361,7 @@ const addNewProperties = <T>({
         const idToDittoIndex = ditto.reduce(
           (acc, item, index) =>
             Object.assign(acc, {
-              [item[metaSymbol].id]: index,
+              [(item as any)[metaSymbol].id]: index,
             }),
           {} as Record<Key, number>
         );
@@ -422,7 +419,7 @@ const removeOldProperties = <T>({
     () => {
       if (
         isPlainObject(original.value) &&
-        isPlainObject(ditto[metaSymbol].model)
+        isPlainObject((ditto as any)[metaSymbol].model)
       ) {
         for (const key of getOwnKeys(ditto)) {
           try {
@@ -444,7 +441,7 @@ const removeOldProperties = <T>({
         const idToDittoIndex = ditto.reduce(
           (acc, item, index) =>
             Object.assign(acc, {
-              [item[metaSymbol].id]: index,
+              [(item as any)[metaSymbol].id]: index,
             }),
           {} as Record<Key, number>
         );
