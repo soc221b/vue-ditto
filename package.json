@@ -24,6 +24,14 @@
     "src",
     "dist"
   ],
+  "keywords": [
+    "vue",
+    "clone",
+    "copy",
+    "mirror",
+    "ref",
+    "reactive"
+  ],
   "scripts": {
     "postinstall": "husky install",
     "prepublishOnly": "pinst --disable",
