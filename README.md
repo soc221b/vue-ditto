@@ -157,11 +157,9 @@ For TypeScript, you must extend the type for the Ditto interface:
 
 ```ts
 declare module "vue-ditto" {
-  interface Ditto<T> {
-    $meta: {
-      path: Path;
-      original: any;
-    };
+  interface DittoMeta<T> {
+    $original: T;
+    $updateCount: number;
   }
 }
 ```
@@ -185,31 +183,31 @@ function dittoRef<T>({
   onChildrenCreated?: DittoCallback;
   onUpdated?: DittoCallback;
   onChildrenUpdated?: DittoCallback;
-}): Ref<NestedDitto<T>>;
+}): Ref<Ditto<T>>;
 
-type NestedDitto<T> = T extends any[]
-  ? NestedDitto<T[number]>[] & Ditto<T>
+type Ditto<T> = T extends any[]
+  ? Ditto<T[number]>[] & DittoMeta<T>
   : T extends object
   ? {
-      [P in keyof T]: NestedDitto<T[P]>;
-    } & Ditto<T>
-  : Ditto<T>;
+      [P in keyof T]: Ditto<T[P]>;
+    } & DittoMeta<T>
+  : DittoMeta<T>;
 
-interface Ditto<T> {}
+interface DittoMeta<T> {}
 
 type DittoCallback = <T>({
   ditto,
   path,
   original,
 }: {
-  ditto: NestedDitto<T>;
+  ditto: Ditto<T>;
   path: Path;
   original: Ref<any>;
 }) => void;
 
-type Key = string | number | symbol;
-
 type Path = Key[];
+
+type Key = string | number | symbol;
 ```
 
 ## Contributing
